@@ -274,10 +274,10 @@ var DEFAULT_PLATFORMS=[
   {id:'magnific',name:'Magnific AI',icon:'&#10024;',color:'#f59e0b',rgb:'245,158,11',
    category:'Imagem \u00b7 Upscale & Enhance',
    plans:[
-     {name:'Essential',price:74,credits:8000},
-     {name:'Premium',price:154,credits:20000},
-     {name:'Premium+',price:342,credits:45000},
-     {name:'Pro',price:2166,credits:300000}
+     {name:'Premium',price:80,credits:20000},
+     {name:'Premium+',price:180,credits:45000},
+     {name:'Advanced',price:440,credits:112500},
+     {name:'Pro',price:1150,credits:300000}
    ],
    selectedPlan:1,
    generations:[
@@ -320,7 +320,7 @@ var DEFAULT_PLATFORMS=[
    ]}
 ];
 
-var LS_KEY='calc-prompts-v3';
+var LS_KEY='calc-prompts-v4';
 function loadState(){
   try{var r=localStorage.getItem(LS_KEY);if(r)return JSON.parse(r);}catch(e){}
   return JSON.parse(JSON.stringify(DEFAULT_PLATFORMS));
