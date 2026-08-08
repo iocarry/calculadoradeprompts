@@ -271,12 +271,12 @@
     .add-gen-btn:hover { background: rgba(var(--p-rgb), 0.25); }
     
     .gen-list { display: flex; flex-direction: column; gap: 0.4rem; }
-    .gen-col-header { display: grid; grid-template-columns: 1fr 95px 105px 24px; gap: 0.5rem; padding: 0 0.65rem; margin-bottom: 0.3rem; }
+    .gen-col-header { display: grid; grid-template-columns: 1fr 85px 145px 24px; gap: 0.5rem; padding: 0 0.65rem; margin-bottom: 0.3rem; }
     .gen-col-header span { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted); }
     .gen-col-header span:nth-child(2), .gen-col-header span:nth-child(3) { text-align: right; }
     
     .gen-item {
-      display: grid; grid-template-columns: 1fr 95px 105px 24px; align-items: center;
+      display: grid; grid-template-columns: 1fr 85px 145px 24px; align-items: center;
       gap: 0.5rem; padding: 0.55rem 0.65rem; background: var(--surface); border: 1px solid var(--border-soft);
       border-radius: 10px; transition: background 0.2s, border-color 0.2s;
     }
@@ -307,7 +307,10 @@
     
     /* Tooltip */
     .gen-cost-wrap { position: relative; text-align: right; cursor: help; }
-    .gen-cost-el { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 600; color: var(--p-color); white-space: nowrap; }
+    .gen-cost-el { font-family: 'JetBrains Mono', monospace; font-size: 1.3rem; color: var(--p-color); white-space: nowrap; display: inline-flex; align-items: baseline; justify-content: flex-end; width: 100%; }
+    .c-sym { font-size: 0.55em; opacity: 0.8; font-weight: 600; margin-right: 4px; }
+    .c-int { font-size: 2.1em; font-weight: 800; letter-spacing: -0.04em; }
+    .c-dec { font-size: 1.47em; opacity: 0.85; font-weight: 700; margin-left: 2px; }
     .gen-cost-wrap::after {
       content: attr(data-tooltip);
       position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-5px);
@@ -585,6 +588,17 @@ function fmtCurrency(val, precise = false) {
   return sym + val.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
 }
 
+function fmtCurrencyHTML(val, precise = false) {
+  if (val === 0) return SETTINGS.currency === 'BRL' ? '<span class="c-sym">— R$</span>' : '<span class="c-sym">— $</span>';
+  const sym = SETTINGS.currency === 'BRL' ? 'R$' : '$';
+  const str = (val >= 0.01 && !precise) ? val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : val.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  const parts = str.split(',');
+  if (parts.length === 2) {
+    return `<span class="c-sym">${sym}</span><span class="c-int">${parts[0]}</span><span class="c-dec">,${parts[1]}</span>`;
+  }
+  return `<span class="c-sym">${sym}</span><span class="c-int">${str}</span>`;
+}
+
 function fmtNum(n) { return Number(n).toLocaleString('pt-BR'); }
 function ppc(p, planIndex) { 
     const idx = planIndex !== undefined ? planIndex : p.selectedPlan;
@@ -806,7 +820,7 @@ function buildGenItem(p, gen) {
       <input class="gen-credits-input" id="gci-${gen.id}" type="number" min="0.1" step="0.1" value="${gen.credits}" data-pid="${p.id}" data-gid="${gen.id}">
     </div>
     <div class="gen-cost-wrap" data-tooltip="${ttMath}">
-      <span class="gen-cost-el" id="gcost-${gen.id}">${fmtCurrency(usdCost)}</span>
+      <span class="gen-cost-el" id="gcost-${gen.id}">${fmtCurrencyHTML(usdCost)}</span>
     </div>
     <button class="gen-del-btn" data-pid="${p.id}" data-gid="${gen.id}" title="Remover">✕</button>`;
   return item;
@@ -828,9 +842,9 @@ function refreshCard(pid) {
   const elCr = document.getElementById('mv-credits-' + pid);
   const elPpc = document.getElementById('mv-ppc-' + pid);
   
-  if (elPrice) elPrice.textContent = fmtCurrency(getConvertedPrice(plan.price, p.baseCurrency));
+  if (elPrice) elPrice.innerHTML = fmtCurrencyHTML(getConvertedPrice(plan.price, p.baseCurrency));
   if (elCr) elCr.textContent = fmtNum(plan.credits);
-  if (elPpc) elPpc.textContent = fmtCurrency(rate);
+  if (elPpc) elPpc.innerHTML = fmtCurrencyHTML(rate);
   
   p.generations.forEach(gen => {
     const c = document.getElementById('gcost-' + gen.id); 
@@ -841,7 +855,7 @@ function refreshCard(pid) {
     const maxGens = Math.floor(plan.credits / gen.credits);
     const usdCost = gen.credits * rate;
     
-    if (c) c.textContent = fmtCurrency(usdCost);
+    if (c) c.innerHTML = fmtCurrencyHTML(gen.credits * rate);
     if (d) d.textContent = gen.credits + ' cr';
     if (m) m.textContent = isFinite(maxGens) ? `~${fmtNum(maxGens)} possíveis` : '';
     
