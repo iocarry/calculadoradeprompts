@@ -1020,6 +1020,7 @@ function addGen(pid) {
   const p = STATE.find(x => x.id === pid);
   const gen = {id: uid(), name: 'Nova geração', credits: 10};
   p.generations.push(gen);
+  persistAll();
   
   const list = document.getElementById('gen-list-' + pid);
   const card = document.getElementById('card-' + pid);
@@ -1048,6 +1049,7 @@ function addGen(pid) {
 function deleteGen(pid, gid) {
   const p = STATE.find(x => x.id === pid);
   p.generations = p.generations.filter(g => g.id !== gid);
+  persistAll();
   const item = document.getElementById('gi-' + gid);
   if (item) {
     item.style.transition = 'opacity .25s,transform .25s';
@@ -1150,12 +1152,14 @@ document.addEventListener('input', e => {
     const p = STATE.find(x => x.id === pid);
     p.plans[p.selectedPlan][field] = parseFloat(e.target.value) || 0;
     refreshCard(pid);
+    persistAll();
   }
   if (e.target.matches('.base-cur-sel[data-pid]')) {
     const pid = e.target.dataset.pid;
     const p = STATE.find(x => x.id === pid);
     p.baseCurrency = e.target.value;
     refreshCard(pid);
+    persistAll();
   }
   if (e.target.matches('.gen-credits-input[data-pid][data-gid]')) {
     const pid2 = e.target.dataset.pid;
@@ -1165,6 +1169,7 @@ document.addEventListener('input', e => {
     if (gen) {
       gen.credits = parseFloat(e.target.value) || 0;
       refreshCard(pid2);
+      persistAll();
     }
   }
   if (e.target.matches('.color-picker')) {
@@ -1189,6 +1194,7 @@ document.addEventListener('input', e => {
       const cat = card.querySelector('.platform-category');
       if (cat) cat.style.color = p3.color;
     }
+    persistAll();
   }
 });
 
@@ -1198,6 +1204,7 @@ document.addEventListener('blur', e => {
     const p = STATE.find(x => x.id === pid);
     const v = e.target.textContent.trim();
     if (v) p.name = v; else e.target.textContent = p.name;
+    persistAll();
   }
   if (e.target.matches('.gen-name-el[data-pid][data-gid]')) {
     const pid2 = e.target.dataset.pid;
@@ -1206,6 +1213,7 @@ document.addEventListener('blur', e => {
     const gen = p2.generations.find(g => g.id === gid);
     const v2 = e.target.textContent.trim();
     if (gen && v2) gen.name = v2; else if (gen) e.target.textContent = gen.name;
+    persistAll();
   }
 }, true);
 
