@@ -470,6 +470,7 @@ const CACHE_DURATION = 86400000; // 24 hours in ms
 const DEFAULT_PLATFORMS = [
   {id:'magnific',name:'Magnific AI',icon:'✨',color:'#f59e0b',rgb:'245,158,11',
    category:'Imagem \u00b7 Upscale & Enhance',
+   baseCurrency: 'BRL',
    plans:[
      {name:'Premium',price:80,credits:20000},
      {name:'Premium+',price:180,credits:45000},
@@ -571,9 +572,15 @@ function toggleTheme() {
 document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
 
 // === SECTION: FORMATTING & MATH ===
-function fmtCurrency(v, precise = false) {
-  if (v === 0) return SETTINGS.currency === 'BRL' ? '— R$' : '— $';
-  const val = SETTINGS.currency === 'BRL' ? v * SETTINGS.exchangeRate : v;
+function getConvertedPrice(basePrice, baseCur) {
+  const cur = baseCur || 'USD';
+  if (cur === 'USD' && SETTINGS.currency === 'BRL') return basePrice * SETTINGS.exchangeRate;
+  if (cur === 'BRL' && SETTINGS.currency === 'USD') return basePrice / SETTINGS.exchangeRate;
+  return basePrice;
+}
+
+function fmtCurrency(val, precise = false) {
+  if (val === 0) return SETTINGS.currency === 'BRL' ? '— R$' : '— $';
   const sym = SETTINGS.currency === 'BRL' ? 'R$ ' : '$ ';
   if (val >= 0.01 && !precise) return sym + val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return sym + val.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
@@ -584,7 +591,7 @@ function ppc(p, planIndex) {
     const idx = planIndex !== undefined ? planIndex : p.selectedPlan;
     const pl = p.plans[idx]; 
     if (!pl || !pl.credits) return 0; 
-    return pl.price / pl.credits; 
+    return getConvertedPrice(pl.price, p.baseCurrency) / pl.credits; 
 }
 
 // === SECTION: CORE FUNCTIONS ===
@@ -727,8 +734,14 @@ function buildCard(p, index) {
     ${bestValueHtml}
     <div class="plan-edit-fields" id="plan-edit-${p.id}">
       <div class="field-wrap">
-        <span class="field-label">Preço base / mês (USD)</span>
-        <input class="field-input" id="fi-price-${p.id}" type="number" min="0" step="0.01" value="${plan.price}" data-pid="${p.id}" data-field="price" title="O valor base do plano, sempre em dólares">
+        <span class="field-label">Preço base / mês</span>
+        <div style="display:flex; gap:0.4rem">
+          <select class="field-input base-cur-sel" data-pid="${p.id}" style="width:75px; padding:0.45rem 0.2rem">
+            <option value="USD" ${p.baseCurrency !== 'BRL' ? 'selected' : ''}>USD</option>
+            <option value="BRL" ${p.baseCurrency === 'BRL' ? 'selected' : ''}>BRL</option>
+          </select>
+          <input class="field-input" id="fi-price-${p.id}" type="number" min="0" step="0.01" value="${plan.price}" data-pid="${p.id}" data-field="price" title="O valor base do plano na moeda selecionada">
+        </div>
       </div>
       <div class="field-wrap">
         <span class="field-label">Créditos / mês</span>
@@ -741,7 +754,7 @@ function buildCard(p, index) {
   met.className = 'metrics-row'; 
   met.id = 'metrics-' + p.id;
   met.innerHTML = `
-    <div class="metric-cell"><span class="metric-value" id="mv-price-${p.id}">${fmtCurrency(plan.price)}</span><div class="metric-label">Preço/mês</div></div>
+    <div class="metric-cell"><span class="metric-value" id="mv-price-${p.id}">${fmtCurrency(getConvertedPrice(plan.price, p.baseCurrency))}</span><div class="metric-label">Preço/mês</div></div>
     <div class="metric-cell"><span class="metric-value" id="mv-credits-${p.id}">${fmtNum(plan.credits)}</span><div class="metric-label">Créditos/mês</div></div>
     <div class="metric-cell"><span class="metric-value" id="mv-ppc-${p.id}">${fmtCurrency(rate)}</span><div class="metric-label">Custo/crédito</div></div>`;
   card.appendChild(met);
@@ -816,7 +829,7 @@ function refreshCard(pid) {
   const elCr = document.getElementById('mv-credits-' + pid);
   const elPpc = document.getElementById('mv-ppc-' + pid);
   
-  if (elPrice) elPrice.textContent = fmtCurrency(plan.price);
+  if (elPrice) elPrice.textContent = fmtCurrency(getConvertedPrice(plan.price, p.baseCurrency));
   if (elCr) elCr.textContent = fmtNum(plan.credits);
   if (elPpc) elPpc.textContent = fmtCurrency(rate);
   
@@ -847,7 +860,7 @@ function refreshCard(pid) {
   let bestPlanIdx = 0;
   let minPpc = Infinity;
   p.plans.forEach((pl, i) => {
-      const pCost = pl.credits ? (pl.price / pl.credits) : Infinity;
+      const pCost = pl.credits ? (getConvertedPrice(pl.price, p.baseCurrency) / pl.credits) : Infinity;
       if (pCost < minPpc) { minPpc = pCost; bestPlanIdx = i; }
   });
   
@@ -923,7 +936,7 @@ function addNewPlatformGlobal() {
     const newId = uid();
     const np = {
         id: newId, name: 'Nova Plataforma', icon: '✨', color: '#10b981', rgb: '16,185,129',
-        category: 'Personalizado', plans: [
+        category: 'Personalizado', baseCurrency: 'USD', plans: [
           {name: 'Plano 1', price: 100, credits: 1000},
           {name: 'Plano 2', price: 200, credits: 2500}
         ],
@@ -1136,6 +1149,12 @@ document.addEventListener('input', e => {
     const field = e.target.dataset.field;
     const p = STATE.find(x => x.id === pid);
     p.plans[p.selectedPlan][field] = parseFloat(e.target.value) || 0;
+    refreshCard(pid);
+  }
+  if (e.target.matches('.base-cur-sel[data-pid]')) {
+    const pid = e.target.dataset.pid;
+    const p = STATE.find(x => x.id === pid);
+    p.baseCurrency = e.target.value;
     refreshCard(pid);
   }
   if (e.target.matches('.gen-credits-input[data-pid][data-gid]')) {
