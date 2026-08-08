@@ -249,7 +249,7 @@
 <header>
   <div class="header-badge">&#9889; Calculadora de Créditos IA</div>
   <h1>Calculadora de Prompts</h1>
-  <p class="header-sub">Consulte o custo real em R&#36; de cada tipo de geração<br>com base no seu plano ativo.</p>
+  <p class="header-sub">Consulte o custo real de cada tipo de geração<br>com base no seu plano ativo.</p>
   <div class="header-note">
     <span>&#128161;</span> Clique em <strong>Editar</strong> em qualquer bloco para personalizar valores, nomes, cores e ordem. As alterações são salvas localmente.
   </div>
@@ -259,7 +259,7 @@
   <button class="add-platform-global" onclick="addNewPlatformGlobal()">&#65291; Adicionar Nova Plataforma</button>
 </div>
 <div id="toast" role="status" aria-live="polite">&#10003; Salvo!</div>
-<footer class="page-footer">Valores aproximados convertidos de USD &middot; Taxa ~R&#36; 5,70 &middot; Consulte o site oficial de cada plataforma para precos exatos.</footer>
+<footer class="page-footer">O símbolo "$" representa a moeda da sua escolha (Dólar ou Real) baseada no valor que você inserir &middot; Consulte os sites oficiais para preços exatos.</footer>
 
 <script>
 function uid(){return 'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
@@ -290,10 +290,10 @@ var DEFAULT_PLATFORMS=[
   {id:'kling',name:'Kling AI',icon:'&#127916;',color:'#00d4ff',rgb:'0,212,255',
    category:'Vídeo \u00b7 Geração por IA',
    plans:[
-     {name:'Standard',price:50,credits:660},
-     {name:'Pro',price:186,credits:3000},
-     {name:'Premier',price:462,credits:8000},
-     {name:'Ultra',price:912,credits:26000}
+     {name:'Standard',price:6.99,credits:660},
+     {name:'Pro',price:25.99,credits:3000},
+     {name:'Premier',price:64.99,credits:8000},
+     {name:'Ultra',price:127.99,credits:26000}
    ],
    selectedPlan:1,
    generations:[
@@ -306,9 +306,9 @@ var DEFAULT_PLATFORMS=[
   {id:'higgsfield',name:'Higgsfield AI',icon:'&#128640;',color:'#a855f7',rgb:'168,85,247',
    category:'Vídeo \u00b7 Personagem & Cena',
    plans:[
-     {name:'Starter',price:68,credits:200},
-     {name:'Plus',price:194,credits:900},
-     {name:'Ultra',price:508,credits:3000}
+     {name:'Starter',price:15,credits:200},
+     {name:'Plus',price:49,credits:1000},
+     {name:'Ultra',price:129,credits:3000}
    ],
    selectedPlan:1,
    generations:[
@@ -320,7 +320,7 @@ var DEFAULT_PLATFORMS=[
    ]}
 ];
 
-var LS_KEY='calc-prompts-v4';
+var LS_KEY='calc-prompts-v5';
 function loadState(){
   try{var r=localStorage.getItem(LS_KEY);if(r)return JSON.parse(r);}catch(e){}
   return JSON.parse(JSON.stringify(DEFAULT_PLATFORMS));
@@ -329,9 +329,9 @@ var STATE=loadState();
 function persistAll(){localStorage.setItem(LS_KEY,JSON.stringify(STATE))}
 
 function fmtBRL(v){
-  if(v===0)return '— R$';
-  if(v>=0.01)return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  return 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4});
+  if(v===0)return '— $';
+  if(v>=0.01)return '$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return '$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4});
 }
 function fmtNum(n){return Number(n).toLocaleString('pt-BR')}
 function ppc(p){var pl=p.plans[p.selectedPlan];if(!pl||!pl.credits)return 0;return pl.price/pl.credits}
@@ -367,20 +367,20 @@ function buildCard(p){
   psel.innerHTML='<div class="section-label">Plano Ativo</div>'+
     '<div class="plan-tabs">'+tabsHtml+'</div>'+
     '<div class="plan-edit-fields" id="plan-edit-'+p.id+'">'+
-    '<div class="field-wrap"><span class="field-label">Preço / mês (R$)</span>'+
-    '<input class="field-input" id="fi-price-'+p.id+'" type="number" min="0" step="1" value="'+plan.price+'" data-pid="'+p.id+'" data-field="price"></div>'+
+    '<div class="field-wrap"><span class="field-label">Preço / mês ($)</span>'+
+    '<input class="field-input" id="fi-price-'+p.id+'" type="number" min="0" step="0.01" value="'+plan.price+'" data-pid="'+p.id+'" data-field="price"></div>'+
     '<div class="field-wrap"><span class="field-label">Créditos / mês</span>'+
     '<input class="field-input" id="fi-credits-'+p.id+'" type="number" min="1" step="1" value="'+plan.credits+'" data-pid="'+p.id+'" data-field="credits"></div></div>';
   card.appendChild(psel);
   var met=document.createElement('div');met.className='metrics-row';met.id='metrics-'+p.id;
-  met.innerHTML='<div class="metric-cell"><span class="metric-value" id="mv-price-'+p.id+'">R$ '+fmtNum(plan.price)+'</span><div class="metric-label">Preço/mês</div></div>'+
+  met.innerHTML='<div class="metric-cell"><span class="metric-value" id="mv-price-'+p.id+'">$ '+fmtNum(plan.price)+'</span><div class="metric-label">Preço/mês</div></div>'+
     '<div class="metric-cell"><span class="metric-value" id="mv-credits-'+p.id+'">'+fmtNum(plan.credits)+'</span><div class="metric-label">Créditos/mês</div></div>'+
     '<div class="metric-cell"><span class="metric-value" id="mv-ppc-'+p.id+'">'+fmtBRL(rate)+'</span><div class="metric-label">Custo/crédito</div></div>';
   card.appendChild(met);
   var gsec=document.createElement('div');gsec.className='gen-section';
   gsec.innerHTML='<div class="gen-section-header"><span class="section-label">Tipos de Geração</span>'+
     '<button class="add-gen-btn" data-pid="'+p.id+'">&#65291; Adicionar</button></div>'+
-    '<div class="gen-col-header"><span>Tipo</span><span>Créditos</span><span>Custo (R$)</span><span></span></div>'+
+    '<div class="gen-col-header"><span>Tipo</span><span>Créditos</span><span>Custo ($)</span><span></span></div>'+
     '<div class="gen-list" id="gen-list-'+p.id+'"></div>';
   card.appendChild(gsec);
   var ftr=document.createElement('div');ftr.className='card-footer';
@@ -412,7 +412,7 @@ function populateGenList(p){
 function refreshCard(pid){
   var p=STATE.find(function(x){return x.id===pid});
   var plan=p.plans[p.selectedPlan];var rate=ppc(p);
-  document.getElementById('mv-price-'+pid).textContent='R$ '+fmtNum(plan.price);
+  document.getElementById('mv-price-'+pid).textContent='$ '+fmtNum(plan.price);
   document.getElementById('mv-credits-'+pid).textContent=fmtNum(plan.credits);
   document.getElementById('mv-ppc-'+pid).textContent=fmtBRL(rate);
   p.generations.forEach(function(gen){
