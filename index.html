@@ -475,7 +475,25 @@
 <div id="toast" role="status" aria-live="polite">✓ Salvo!</div>
 <footer class="page-footer" id="main-footer">O símbolo "$" representa a moeda da sua escolha. Consulte os sites oficiais para preços exatos.</footer>
 
-<script>
+<script type="module">
+// === SECTION: FIREBASE ===
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDigo7zE2q4xX2L86RYqSH6GglrBTHI30E",
+  authDomain: "calculadora-de-prompts.firebaseapp.com",
+  projectId: "calculadora-de-prompts",
+  storageBucket: "calculadora-de-prompts.firebasestorage.app",
+  messagingSenderId: "931321639994",
+  appId: "1:931321639994:web:59a9ac66c58e9556e17103",
+  measurementId: "G-K6TGGDT4W2"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
+const FIRESTORE_DOC = doc(db, 'app', 'platforms');
+
 // === SECTION: STATE & CONSTANTS ===
 const LS_KEY = 'calc-prompts-v5';
 const SETTINGS_KEY = 'calc-prompts-settings-v1';
@@ -531,9 +549,10 @@ const DEFAULT_PLATFORMS = [
    ]}
 ];
 
-let STATE = loadState();
+let STATE = [];
 let SETTINGS = loadSettings();
 let toastTimer;
+let _firestoreListenerActive = false;
 
 // === SECTION: UTILS ===
 function uid() { return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -543,15 +562,34 @@ function hexToRgb(hex) {
     return result ? parseInt(result[1], 16) + ',' + parseInt(result[2], 16) + ',' + parseInt(result[3], 16) : '0,0,0';
 }
 
-function loadState() {
+async function loadState() {
+  // 1. Tenta carregar do Firestore (banco compartilhado)
+  try {
+    const snap = await getDoc(FIRESTORE_DOC);
+    if (snap.exists() && Array.isArray(snap.data().data)) {
+      const remoteData = snap.data().data;
+      localStorage.setItem(LS_KEY, JSON.stringify(remoteData)); // atualiza cache local
+      return remoteData;
+    }
+  } catch (e) {
+    console.warn('Firestore indisponível, usando cache local.', e);
+  }
+  // 2. Fallback: cache local
   try {
     const r = localStorage.getItem(LS_KEY);
     if (r) return JSON.parse(r);
   } catch (e) {}
+  // 3. Fallback final: dados padrão
   return JSON.parse(JSON.stringify(DEFAULT_PLATFORMS));
 }
 
-function persistAll() { localStorage.setItem(LS_KEY, JSON.stringify(STATE)); }
+function persistAll() {
+  // Salva localmente
+  localStorage.setItem(LS_KEY, JSON.stringify(STATE));
+  // Salva no Firestore (compartilhado com todos)
+  setDoc(FIRESTORE_DOC, { data: STATE, lastUpdated: new Date().toISOString() })
+    .catch(e => console.error('Erro ao salvar no Firestore:', e));
+}
 
 function loadSettings() {
   const defaultSettings = { currency: 'BRL', exchangeRate: 5.50, rateDate: '', manualRate: false, lastFetch: 0, theme: 'dark' };
@@ -1247,20 +1285,42 @@ document.addEventListener('blur', e => {
 }, true);
 
 // === SECTION: INIT ===
-(function init() {
+(async function init() {
   applyTheme();
   updateSettingsUI();
   updateFooter();
   fetchExchangeRate();
+
+  // Carrega dados (Firestore ou cache local)
+  STATE = await loadState();
   renderAll();
-  
-  if (localStorage.getItem(LS_KEY)) {
-    STATE.forEach(p => {
-      const el = document.getElementById('ls-' + p.id);
-      if (el) {
-        el.textContent = 'Carregado do cache';
-        el.dataset.loaded = 'Carregado do cache';
-      }
+
+  STATE.forEach(p => {
+    const el = document.getElementById('ls-' + p.id);
+    if (el) {
+      el.textContent = 'Carregado da nuvem ☁️';
+      el.dataset.loaded = 'Carregado da nuvem ☁️';
+    }
+  });
+
+  // Listener em tempo real: atualiza a tela quando outro usuário salvar
+  if (!_firestoreListenerActive) {
+    _firestoreListenerActive = true;
+    onSnapshot(FIRESTORE_DOC, (snap) => {
+      if (!snap.exists()) return;
+      const remoteData = snap.data().data;
+      if (!Array.isArray(remoteData)) return;
+
+      // Verifica se há algum card sendo editado no momento
+      const anyEditing = document.querySelector('.platform-card[data-editing="true"]');
+      if (anyEditing) return; // Não interrompe quem está editando
+
+      STATE = remoteData;
+      localStorage.setItem(LS_KEY, JSON.stringify(STATE));
+      renderAll();
+      showToast('☁️ Dados atualizados da nuvem!');
+    }, (err) => {
+      console.warn('Listener Firestore encerrado:', err);
     });
   }
 })();
