@@ -1284,6 +1284,15 @@ document.addEventListener('blur', e => {
   }
 }, true);
 
+window.setCurrency = setCurrency;
+window.manualRateChange = manualRateChange;
+window.addNewPlatformGlobal = addNewPlatformGlobal;
+window.exportData = exportData;
+window.importData = importData;
+window.resetToDefaults = resetToDefaults;
+window.movePlatform = movePlatform;
+window.deletePlatform = deletePlatform;
+
 // === SECTION: INIT ===
 (async function init() {
   applyTheme();
@@ -1326,7 +1335,7 @@ document.addEventListener('blur', e => {
 })();
 
 // === SECTION: INTERACTIVE EFFECTS ===
-document.addEventListener('DOMContentLoaded', () => {
+function initInteractive() {
   const grid = document.querySelector('.platform-grid');
   if (!grid) return;
   
@@ -1362,7 +1371,13 @@ document.addEventListener('DOMContentLoaded', () => {
       card.style.zIndex = '1';
     }
   });
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initInteractive);
+} else {
+  initInteractive();
+}
 </script>
 </body>
 </html>
