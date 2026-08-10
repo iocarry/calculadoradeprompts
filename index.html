@@ -1410,6 +1410,18 @@ function initInteractive() {
     });
   }
 
+  // Atalho de Teclado Adicional (Ctrl+Y) para o Painel Secreto
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.key.toLowerCase() === 'y') {
+      e.preventDefault(); // Evita a ação padrão do navegador (Redo)
+      const panel = document.getElementById('secret-backup-panel');
+      if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        if (panel.style.display === 'flex') showToast('🕵️ Painel Secreto Ativado!');
+      }
+    }
+  });
+
   const grid = document.querySelector('.platform-grid');
   if (!grid) return;
   
