@@ -562,24 +562,13 @@ function hexToRgb(hex) {
     return result ? parseInt(result[1], 16) + ',' + parseInt(result[2], 16) + ',' + parseInt(result[3], 16) : '0,0,0';
 }
 
-async function loadState() {
-  // 1. Tenta carregar do Firestore (banco compartilhado)
-  try {
-    const snap = await getDoc(FIRESTORE_DOC);
-    if (snap.exists() && Array.isArray(snap.data().data)) {
-      const remoteData = snap.data().data;
-      localStorage.setItem(LS_KEY, JSON.stringify(remoteData)); // atualiza cache local
-      return remoteData;
-    }
-  } catch (e) {
-    console.warn('Firestore indisponível, usando cache local.', e);
-  }
-  // 2. Fallback: cache local
+function loadState() {
+  // 1. Tenta carregar do cache local para renderizar imediatamente
   try {
     const r = localStorage.getItem(LS_KEY);
     if (r) return JSON.parse(r);
   } catch (e) {}
-  // 3. Fallback final: dados padrão
+  // 2. Fallback final: dados padrão se o cache estiver vazio
   return JSON.parse(JSON.stringify(DEFAULT_PLATFORMS));
 }
 
@@ -1294,25 +1283,17 @@ window.movePlatform = movePlatform;
 window.deletePlatform = deletePlatform;
 
 // === SECTION: INIT ===
-(async function init() {
+(function init() {
   applyTheme();
   updateSettingsUI();
   updateFooter();
   fetchExchangeRate();
 
-  // Carrega dados (Firestore ou cache local)
-  STATE = await loadState();
+  // Carrega do cache instantaneamente e renderiza
+  STATE = loadState();
   renderAll();
 
-  STATE.forEach(p => {
-    const el = document.getElementById('ls-' + p.id);
-    if (el) {
-      el.textContent = 'Carregado da nuvem ☁️';
-      el.dataset.loaded = 'Carregado da nuvem ☁️';
-    }
-  });
-
-  // Listener em tempo real: atualiza a tela quando outro usuário salvar
+  // Listener assíncrono: busca da nuvem (Firestore) sem travar a tela
   if (!_firestoreListenerActive) {
     _firestoreListenerActive = true;
     onSnapshot(FIRESTORE_DOC, (snap) => {
@@ -1327,7 +1308,16 @@ window.deletePlatform = deletePlatform;
       STATE = remoteData;
       localStorage.setItem(LS_KEY, JSON.stringify(STATE));
       renderAll();
-      showToast('☁️ Dados atualizados da nuvem!');
+      
+      // Atualiza o aviso de último salvamento para indicar que veio da nuvem
+      STATE.forEach(p => {
+        const el = document.getElementById('ls-' + p.id);
+        if (el) {
+          el.textContent = 'Carregado da nuvem ☁️';
+          el.dataset.loaded = 'Carregado da nuvem ☁️';
+        }
+      });
+      
     }, (err) => {
       console.warn('Listener Firestore encerrado:', err);
     });
