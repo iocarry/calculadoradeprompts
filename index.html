@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Calculadora de creditos para plataformas de IA.">
-  <title>Calculadora de Prompts - Custos de IA</title>
+  <title>Calculadora de Gastos com IA</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +29,7 @@
       --bg-grad-3: rgba(168, 85, 247, 0.06);
       --grid-line: rgba(255, 255, 255, 0.03);
       --input-bg: rgba(255, 255, 255, 0.05);
+      --accent: #818cf8;
     }
     
     [data-theme="light"] {
@@ -46,6 +47,7 @@
       --bg-grad-3: rgba(168, 85, 247, 0.15);
       --grid-line: rgba(0, 0, 0, 0.04);
       --input-bg: rgba(0, 0, 0, 0.03);
+      --accent: #4338ca;
     }
     
     html { scroll-behavior: smooth; }
@@ -104,6 +106,7 @@
       line-height: 1.1; margin-bottom: 0.9rem;
       background: linear-gradient(135deg, var(--text) 0%, #a5b4fc 45%, #38bdf8 100%);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      cursor: pointer;
     }
     [data-theme="light"] h1 {
       background: linear-gradient(135deg, #0f172a 0%, #4338ca 45%, #0284c7 100%);
@@ -432,7 +435,7 @@
 <header>
   <button class="theme-toggle" id="theme-toggle" title="Alternar Tema" aria-label="Alternar Tema">☀️</button>
   <div class="header-badge">⚡ Calculadora de Créditos IA</div>
-  <h1>Calculadora de Prompts</h1>
+  <h1 id="main-logo">Calculadora de Gastos com IA</h1>
   <p class="header-sub">Consulte o custo real de cada tipo de geração<br>com base no seu plano ativo.</p>
   
   <div class="settings-bar">
@@ -462,7 +465,16 @@
 <div class="global-actions">
   <button class="add-platform-global" onclick="addNewPlatformGlobal()">➕ Adicionar Nova Plataforma</button>
   
-  <!-- Os botões de exportar/importar/restaurar foram removidos pois os dados agora são salvos na nuvem -->
+  <div id="secret-backup-panel" class="data-actions" style="display: none; margin-top: 1rem; border: 1px dashed var(--accent); padding: 1rem; border-radius: 8px; flex-wrap: wrap; justify-content: center;">
+    <p style="width: 100%; text-align: center; margin-top: 0; margin-bottom: 0.5rem; color: var(--accent); font-weight: 500; font-size: 0.9rem;">Painel Secreto de Segurança</p>
+    <button class="data-btn" onclick="exportData()">⬇️ Exportar JSON</button>
+    <label class="data-btn" style="margin: 0;">
+      ⬆️ Importar JSON
+      <input type="file" accept=".json" style="display:none;" id="import-input" onchange="importData(event)">
+    </label>
+    <button class="data-btn" onclick="restoreCloudBackupUI()" style="color:#60a5fa;">☁️ Restaurar Nuvem</button>
+    <button class="data-btn" onclick="resetToDefaults()" style="color:#f87171;">🔄 Restaurar Padrão</button>
+  </div>
 </div>
 
 <div id="toast" role="status" aria-live="polite">✓ Salvo!</div>
@@ -565,11 +577,39 @@ function loadState() {
   return JSON.parse(JSON.stringify(DEFAULT_PLATFORMS));
 }
 
-function persistAll() {
+async function persistAll() {
   // Salva localmente
   localStorage.setItem(LS_KEY, JSON.stringify(STATE));
-  // Salva no Firestore (compartilhado com todos)
-  setDoc(FIRESTORE_DOC, { data: STATE, lastUpdated: new Date().toISOString() })
+  
+  const now = new Date();
+  
+  // Rotina de Backup Semanal Automático
+  const lastBackupStr = localStorage.getItem('lastWeeklyBackup');
+  const lastBackup = lastBackupStr ? new Date(lastBackupStr) : new Date(0);
+  const diffDays = (now - lastBackup) / (1000 * 60 * 60 * 24);
+  
+  if (diffDays >= 7) {
+    try {
+      const BACKUP_DOC = doc(db, 'app', 'backups');
+      const snap = await getDoc(BACKUP_DOC);
+      let history = [];
+      if (snap.exists() && Array.isArray(snap.data().history)) {
+        history = snap.data().history;
+      }
+      history.push({ timestamp: now.toISOString(), data: STATE });
+      // Mantém apenas as últimas 5 semanas
+      if (history.length > 5) history.shift();
+      
+      await setDoc(BACKUP_DOC, { history });
+      localStorage.setItem('lastWeeklyBackup', now.toISOString());
+      console.log('Backup semanal na nuvem realizado.');
+    } catch (e) {
+      console.error('Erro ao fazer backup semanal:', e);
+    }
+  }
+
+  // Salva no Firestore principal (compartilhado com todos)
+  setDoc(FIRESTORE_DOC, { data: STATE, lastUpdated: now.toISOString() })
     .catch(e => console.error('Erro ao salvar no Firestore:', e));
 }
 
@@ -1286,6 +1326,37 @@ window.resetToDefaults = resetToDefaults;
 window.movePlatform = movePlatform;
 window.deletePlatform = deletePlatform;
 
+window.restoreCloudBackupUI = async function() {
+  const BACKUP_DOC = doc(db, 'app', 'backups');
+  try {
+    const snap = await getDoc(BACKUP_DOC);
+    if (!snap.exists() || !snap.data().history || snap.data().history.length === 0) {
+      alert('Nenhum backup encontrado na nuvem.');
+      return;
+    }
+    const history = snap.data().history;
+    let msg = 'Escolha o número do backup para restaurar:\n\n';
+    history.forEach((h, i) => {
+      const dt = new Date(h.timestamp);
+      msg += `[${i + 1}] - ${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR')}\n`;
+    });
+    msg += '\nDigite o número e clique OK, ou Cancele.';
+    const res = prompt(msg);
+    if (!res) return;
+    const idx = parseInt(res) - 1;
+    if (idx >= 0 && idx < history.length) {
+      STATE = history[idx].data;
+      renderAll();
+      persistAll();
+      showToast('☁️ Backup restaurado com sucesso!');
+    } else {
+      alert('Número inválido.');
+    }
+  } catch (e) {
+    alert('Erro ao buscar backups: ' + e.message);
+  }
+}
+
 // === SECTION: INIT ===
 (function init() {
   applyTheme();
@@ -1320,6 +1391,25 @@ window.deletePlatform = deletePlatform;
 
 // === SECTION: INTERACTIVE EFFECTS ===
 function initInteractive() {
+  // Lógica do Painel Secreto (5 cliques no título)
+  let titleClicks = 0;
+  let titleClickTimer = null;
+  const logo = document.getElementById('main-logo');
+  if (logo) {
+    logo.addEventListener('click', () => {
+      titleClicks++;
+      clearTimeout(titleClickTimer);
+      if (titleClicks >= 5) {
+        titleClicks = 0;
+        const panel = document.getElementById('secret-backup-panel');
+        panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+        showToast('🕵️ Painel Secreto Ativado!');
+      } else {
+        titleClickTimer = setTimeout(() => { titleClicks = 0; }, 500);
+      }
+    });
+  }
+
   const grid = document.querySelector('.platform-grid');
   if (!grid) return;
   
