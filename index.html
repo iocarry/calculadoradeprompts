@@ -462,14 +462,7 @@
 <div class="global-actions">
   <button class="add-platform-global" onclick="addNewPlatformGlobal()">➕ Adicionar Nova Plataforma</button>
   
-  <div class="data-actions">
-    <button class="data-btn" onclick="exportData()">⬇️ Exportar JSON</button>
-    <label class="data-btn" style="margin: 0;">
-      ⬆️ Importar JSON
-      <input type="file" accept=".json" style="display:none;" id="import-input" onchange="importData(event)">
-    </label>
-    <button class="data-btn" onclick="resetToDefaults()" style="color:#f87171;">🔄 Restaurar padrão</button>
-  </div>
+  <!-- Os botões de exportar/importar/restaurar foram removidos pois os dados agora são salvos na nuvem -->
 </div>
 
 <div id="toast" role="status" aria-live="polite">✓ Salvo!</div>
