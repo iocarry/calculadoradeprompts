@@ -816,8 +816,17 @@ function buildCard(p, index) {
   
   const ftr = document.createElement('div'); 
   ftr.className = 'card-footer';
+  
+  let lastUpdText = '—';
+  if (p.lastUpdated) {
+     const dt = new Date(p.lastUpdated);
+     lastUpdText = 'Atualizado em ' + dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } else {
+     lastUpdText = 'Nunca atualizado (Padrão)';
+  }
+
   ftr.innerHTML = `
-    <span class="last-saved-el" id="ls-${p.id}">—</span>
+    <span class="last-saved-el" id="ls-${p.id}">${lastUpdText}</span>
     <div style="display:flex; gap:0.5rem;">
       <button class="delete-block-btn" onclick="deletePlatform('${p.id}')" title="Excluir Bloco">🗑️</button>
       <button class="save-btn" data-pid="${p.id}" id="save-btn-${p.id}">💾 Salvar bloco</button>
@@ -1050,18 +1059,20 @@ function toggleEdit(pid, btn, forceOpen) {
 }
 
 function handleSave(pid) {
-  persistAll();
   const p = STATE.find(x => x.id === pid);
+  p.lastUpdated = new Date().toISOString();
+  persistAll();
+  
   const btn = document.getElementById('save-btn-' + pid);
   btn.innerHTML = '✓ Salvo!';
   btn.classList.add('saved');
   setTimeout(() => { btn.innerHTML = '💾 Salvar bloco'; btn.classList.remove('saved'); }, 2200);
   
-  const now = new Date();
-  const txt = 'Salvo às ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const dt = new Date(p.lastUpdated);
+  const txt = 'Atualizado em ' + dt.toLocaleDateString('pt-BR') + ' às ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const ls = document.getElementById('ls-' + pid);
   ls.textContent = txt;
-  ls.dataset.loaded = txt;
+  
   showToast(p.name + ' salvo com sucesso!');
 }
 
@@ -1301,16 +1312,6 @@ window.deletePlatform = deletePlatform;
       STATE = remoteData;
       localStorage.setItem(LS_KEY, JSON.stringify(STATE));
       renderAll();
-      
-      // Atualiza o aviso de último salvamento para indicar que veio da nuvem
-      STATE.forEach(p => {
-        const el = document.getElementById('ls-' + p.id);
-        if (el) {
-          el.textContent = 'Carregado da nuvem ☁️';
-          el.dataset.loaded = 'Carregado da nuvem ☁️';
-        }
-      });
-      
     }, (err) => {
       console.warn('Listener Firestore encerrado:', err);
     });
